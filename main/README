@@ -1,0 +1,7 @@
+This is the code for the main processor on the CPE 350 Kayak, Fall 2010
+
+All of the code is located in Project_Kayak.c
+
+To compile and load this code onto the board, you will need to install an avr-gcc based AVR development environment, either avr-gcc on Mac/Linux, or WinAVR on Windows.
+
+To compile, simply run 'make'
