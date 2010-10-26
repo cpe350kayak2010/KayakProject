@@ -16,8 +16,7 @@
 unsigned int iPrevSip,iPrevPuff,iTurn,iSpd,iOutTurn,iOutSpeed,iIdle;
 
 /* Some sort of interpretation of the internal state into an outputtable form,
-   I'm guessing.
-   There aren't really any clues as to WHY it's done this way. -AJH */
+   I'm guessing.  -AJH */
 /* correction: I think this maps the internal enums for speed and direction
    onto a linear speed/direction scale */
 int setOutData()
@@ -75,7 +74,7 @@ int checkSip()
 	return 0;
 }
 
-/* interpret data from the sip sensor. returns 0 if no chamges were made,
+/* interpret data from the puff sensor. returns 0 if no chamges were made,
    1 if speed was changed, and 2 if direction was changed. -AJH */
 int checkPuff()
 {
@@ -149,10 +148,9 @@ int spiInit()
 	return 0;
 }	
 
-/* Write our two bytes of steering control data out over the SPI bus. The first
-   byte is the MSB of the steering, and has its highest bit SET. This is a
-   bit-banged SPI interface; I'm gussing the ATTiny doesn't have hardware SPI.
-   -AJH */
+/* 
+   Write our two bytes of steering control data out over the SPI bus. The first
+   byte is the MSB of the steering, and has its highest bit SET.  -AJH */
 int spiWriteTurn()
 {
 	int i;
@@ -162,7 +160,7 @@ int spiWriteTurn()
 	_delay_loop_1(10);
    /* set up our first output byte. -AJH */
 	USIDR=(0xF<<4)+(iOutTurn>>8);
-   /* bit-bang away! -AJH */
+   /* Transmit our first byte! -AJH */
 	for(i=0;i<8;i++)
 	{
 		USICR=0x11;
@@ -175,7 +173,7 @@ int spiWriteTurn()
 	}
    /* set up our second output byte. -AJH */
 	USIDR=iOutTurn&0xFF;
-   /* bit-bang away! -AJH */
+   /* Transmit our second byte! -AJH */
 	for(i=0;i<8;i++)
 	{
 		USICR=0x11;
@@ -192,9 +190,9 @@ int spiWriteTurn()
 	return 0;
 }
 
-/* write our two bytes of speed control data out over the SPI bus. The first
-   byte is the MSB of the speed, and has its highest bit CLEARED. This is a
-   bit-banged SPI interface. -AJH */
+/*
+   write our two bytes of speed control data out over the SPI bus. The first
+   byte is the MSB of the speed, and has its highest bit CLEARED. -AJH */
 int spiWriteSpeed()
 {
 	int i;
@@ -204,7 +202,7 @@ int spiWriteSpeed()
 	_delay_loop_1(10);
    /* set up our first output byte. -AJH */
 	USIDR=(0x7<<4)+(iOutSpeed>>8);
-   /* bit-bang away! -AJH */
+   /* Transmit our first byte! -AJH */
 	for(i=0;i<8;i++)
 	{
 		USICR=0x11;
@@ -217,7 +215,7 @@ int spiWriteSpeed()
 	}
    /* set up our second output byte. -AJH */
 	USIDR=iOutSpeed&0xFF;
-   /* bit-bang away! -AJH */
+   /* Transmit our second byte! -AJH */
 	for(i=0;i<8;i++)
 	{
 		USICR=0x11;
@@ -266,6 +264,9 @@ int main()
       control board (this code) to the primary processor.
       It should cycle Forward and Left for "a while", then Backwards and Right
       for "a while"
+      
+      this is probably trying to do joystick calibration
+
       Honestly, this looks kinda dangerous if 1) this controller accidentally
       resets or 2) the user just isn't expecting it. -AJH */
 	for(i=0;i<4;i++)
