@@ -3,27 +3,24 @@
    serial interface (bit-banged SPI I think). -AJH */
 
 /* Sip-n-puff User interface protocol
-   This is extracted as best I can from the code
 
    short sip: stop, then reverse
-   long/continuous sip: turn right. stops turning when sip stops?
+   long/continuous sip: turn right. stops turning when sip stops
    
    short puff: increase speed (less reverse/more forward)
-   long/continuous puff: turn left. stops turning when sip stops?
+   long/continuous puff: turn left. stops turning when sip stops
    */
 #include "snpProg.h"
 
 unsigned int iPrevSip,iPrevPuff,iTurn,iSpd,iOutTurn,iOutSpeed,iIdle;
 
-/* Some sort of interpretation of the internal state into an outputtable form,
-   I'm guessing.  -AJH */
-/* correction: I think this maps the internal enums for speed and direction
-   onto a linear speed/direction scale */
-int setOutData()
+/* interpret enumerated types into data to send to our D/A convertor to
+   produce the proper output voltage */
+void setOutData()
 {
+   // TODO: rewrite this for a single backward speed
 	iOutSpeed=(iSpd*496)+64;
 	iOutTurn=(iTurn*1984)+64;
-	return 0;
 }
 
 /* interpret data from the sip sensor. returns 0 if no chamges were made,
@@ -52,7 +49,10 @@ int checkSip()
 		{
 			if(iSpd!=REV100)
 			{	
-				iSpd--;
+				//iSpd--;
+            // one speed in reverse: FULL POWER!
+            //  we'll limit the reverse speed on the main controller
+            iSpd = REV100;
 			}
 			iPrevSip=0;
 			return 1;		// Update Speed
@@ -129,12 +129,12 @@ ISR(TIM0_OVF_vect,ISR_BLOCK)
 	setOutData();				// Set Turn and Spd based on x/4095
 	if(iTemp==1 || iTemp2==1)	// update speed
 	{
-		spiWriteSpeed();
+      spiWrite(iOutSpeed);
 		_delay_loop_1(100);
 	}
 	if(iTemp==2 || iTemp2==2)	// update turn
 	{
-		spiWriteTurn();
+      spiWrite(iOutTurn);
 	}	
 }
 
@@ -151,49 +151,12 @@ int spiInit()
 /* 
    Write our two bytes of steering control data out over the SPI bus. The first
    byte is the MSB of the steering, and has its highest bit SET.  -AJH */
-int spiWriteTurn()
-{
-	int i;
-	PORTA=PORTA & 0xF7;
-	_delay_loop_1(5);
-	USICR=0x11;
-	_delay_loop_1(10);
-   /* set up our first output byte. -AJH */
-	USIDR=(0xF<<4)+(iOutTurn>>8);
-   /* Transmit our first byte! -AJH */
-	for(i=0;i<8;i++)
-	{
-		USICR=0x11;
-		_delay_loop_1(10);
-		USIDR=USIDR<<1;
-		USIDR=USIDR>>1;
-		USICR=0x11;
-		USIDR=USIDR<<1;
-		_delay_loop_1(10);
-	}
-   /* set up our second output byte. -AJH */
-	USIDR=iOutTurn&0xFF;
-   /* Transmit our second byte! -AJH */
-	for(i=0;i<8;i++)
-	{
-		USICR=0x11;
-		_delay_loop_1(10);
-		USIDR=USIDR<<1;
-		USIDR=USIDR>>1;
-		USICR=0x11;
-		USIDR=USIDR<<1;
-		_delay_loop_1(10);
-	}
-	USICR=0x11;
-	_delay_loop_1(20);
-	PORTA=PORTA|0x8;
-	return 0;
-}
-
 /*
    write our two bytes of speed control data out over the SPI bus. The first
    byte is the MSB of the speed, and has its highest bit CLEARED. -AJH */
-int spiWriteSpeed()
+
+/* write the two bytes of an int to the SPI port */
+void spiWrite(unsigned int out)
 {
 	int i;
 	PORTA=PORTA & 0xF7;
@@ -201,7 +164,7 @@ int spiWriteSpeed()
 	USICR=0x11;
 	_delay_loop_1(10);
    /* set up our first output byte. -AJH */
-	USIDR=(0x7<<4)+(iOutSpeed>>8);
+	USIDR=(0x7<<4)+(out>>8);
    /* Transmit our first byte! -AJH */
 	for(i=0;i<8;i++)
 	{
@@ -214,7 +177,7 @@ int spiWriteSpeed()
 		_delay_loop_1(10);
 	}
    /* set up our second output byte. -AJH */
-	USIDR=iOutSpeed&0xFF;
+	USIDR=out&0xFF;
    /* Transmit our second byte! -AJH */
 	for(i=0;i<8;i++)
 	{
@@ -229,7 +192,6 @@ int spiWriteSpeed()
 	USICR=0x11;
 	_delay_loop_1(20);
 	PORTA=PORTA|0x8;
-	return 0;
 }
 
 /* 13.15, 20.49, 27.99,35.46 */
@@ -239,9 +201,6 @@ int spiWriteSpeed()
    routine polls the input at regular intervals and produces output. -AJH */
 int main()
 {//l,f,ri,re
-	volatile int i,j,jTop;
-	int aiStartupSpeed[4]={FWD100,FWD100,REV100,REV100};
-	int aiStartupTurn[4]= {LEFT,LEFT,RIGHT,RIGHT};
 	// Initialize Timer
 	TCCR0A=0x0;
 	TCCR0B=0x4;
@@ -251,45 +210,16 @@ int main()
 	iPrevPuff=0;
 	iPrevSip=0;
 	iIdle=0;
-	jTop=45;
-	spiWriteSpeed();
-	spiWriteTurn();
-	for(j=0;j<jTop;j++)
-	{
-		_delay_loop_2(40000);
-	}
-	jTop=40;
-   /* This looks like a test loop that sends a bunch of data so that a user can
-      confirm that data is being properly transmitted from the spi-n-puff 
-      control board (this code) to the primary processor.
-      It should cycle Forward and Left for "a while", then Backwards and Right
-      for "a while"
-      
-      this is probably trying to do joystick calibration
 
-      Honestly, this looks kinda dangerous if 1) this controller accidentally
-      resets or 2) the user just isn't expecting it. -AJH */
-	for(i=0;i<4;i++)
-	{
-		for(j=0;j<jTop;j++)
-		{
-			iTurn=aiStartupTurn[i];
-			iSpd=aiStartupSpeed[i];
-			setOutData();
-			spiWriteSpeed();
-			_delay_loop_2(200);
-			spiWriteTurn();
-			_delay_loop_2(40000);
-		}
-	}
    /* Zero our state data and prepare for operation. -AJH */
 	iTurn=CENTER;
 	iSpd=ZERO;
 	setOutData();
-	spiWriteSpeed();
+   spiWrite(iOutSpeed);
 	_delay_loop_2(200);
-	spiWriteTurn();
-	// Start ISR
+   spiWrite(iOutTurn);
+	// Enable interrupts
 	sei();
-	return 0; /* this probably ought to be an infinite loop. -AJH */
+   while(1); /* main loop does nothing; everything handled by interrupts */
+	return 0;
 }

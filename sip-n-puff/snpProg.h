@@ -10,9 +10,10 @@
 enum {RIGHT,CENTER,LEFT};
 enum {REV100,REV75,REV50,REV25,ZERO,FWD25,FWD50,FWD75,FWD100};
 
-int setOutData();
+void setOutData();
 int checkSip();
 int checkPuff();
 int spiInit();
-int spiWriteSpeed();
-int spiWriteTurn();
+//void spiWriteSpeed();
+//void spiWriteTurn();
+void spiWrite(unsigned int);
