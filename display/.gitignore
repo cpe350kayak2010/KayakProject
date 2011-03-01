@@ -1,0 +1,11 @@
+LCD.lst
+LCD.o
+Project_Kayak.eep
+Project_Kayak.elf
+Project_Kayak.hex
+Project_Kayak.lss
+Project_Kayak.lst
+Project_Kayak.map
+Project_Kayak.o
+Project_Kayak.sym
+.dep
