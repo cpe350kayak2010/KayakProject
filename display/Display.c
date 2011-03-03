@@ -16,12 +16,12 @@
 #define PTDIN	0x02
 
 #define SPD_BIT 0x80
-#define SPD_OFFSET 1
 #define DIR_OFFSET 3
 #define NEG_BIT 0x40
 #define VAL_MSK 0x38
 
 #define CMD_BIT 0x04
+#define CTRL_MSK 0x03
 #define SIP 0
 #define PUFF 1
 #define LONG_SIP 2
@@ -31,6 +31,7 @@
 #define ON 1
 
 unsigned char USART_Receive(void);
+void clearStates(void);
 
 unsigned int dir[8];
 unsigned int spd[6];
@@ -42,10 +43,11 @@ int main(void){
    DDRC = 1;          /* Pin for LED out */
    unsigned char input;
    unsigned char value;
+   unsigned char control;
 
    while(1) {
       clearStates();      
-      input = USART_Receive;
+      input = USART_Receive();
       
       control = input & CTRL_MSK;
       if (input & CMD_BIT) {
@@ -58,29 +60,19 @@ int main(void){
       value = input&VAL_MSK >> 3;
       if (input & SPD_BIT) { //SPEED
           if (input & NEG_BIT) { //REVERSE
-            switch (value) {
-               default:
-               case 2:
-                  spd[2-1] = ON;
-               case 1:
-                  spd[1-1] = ON;
-                  break;
-               case 0:
-                  break;
-            }
-         
+            spd[0] = ON;
           }
           else { //FORWARD
             switch (value) {
                default:
                case 4:
-                  spd[4+SPD_OFFSET] = ON;
+                  spd[4] = ON;
                case 3:
-                  spd[3+SPD_OFFSET] = ON;
+                  spd[3] = ON;
                case 2:
-                  spd[2+SPD_OFFSET] = ON;
+                  spd[2] = ON;
                case 1:
-                  spd[1+SPD_OFFSET] = ON;
+                  spd[1] = ON;
                   break;
                case 0:
                   break;
@@ -92,13 +84,13 @@ int main(void){
             switch (value) {
                default:
                case 4:
-                  dir[4-1] = ON;
+                  dir[DIR_OFFSET+1-4] = ON;
                case 3:
-                  dir[3-1] = ON;
+                  dir[DIR_OFFSET+1-3] = ON;
                case 2:
-                  dir[2-1] = ON;
+                  dir[DIR_OFFSET+1-2] = ON;
                case 1:
-                  dir[1-1] = ON;
+                  dir[DIR_OFFSET+1-1] = ON;
                   break;
                case 0:
                   break;
@@ -132,7 +124,7 @@ unsigned char USART_Receive(void) {
    return UDR0;
 }
 
-void clearStates() {
+void clearStates(void) {
    int i;
    for (i = 0; i < 8; i++) {
       dir[i] = OFF;
