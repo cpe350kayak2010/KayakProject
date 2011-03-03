@@ -1,13 +1,32 @@
 #include <Servo.h>
+//DISPLAY
+int SPD_BIT = 0x80;
+int NEG_BIT = 0x40;
+int VAL_SHIFT = 3;
 
+int CMD_BIT = 0x04;
+int SIP = 0;
+int PUFF = 1;
+int LONG_SIP = 2;
+int LONG_PUFF = 3;
+
+int DIR_INCR = 70;
+
+//PINS
 int SENSOR_PIN = A5;    // select the input pin for the potentiometer
 int SP_X_PIN = A1;
 int SP_Y_PIN = A0;
-//int LED_PIN = 13;      // select the pin for the LED
 int SPD_PIN = 9;     //Forward/Reverse
 int DIR_PIN = 2;  //Left/Right
 int PWM_PIN = 3;
 
+int DISP_PIN = 5;
+int SIP_PIN = 5;
+int PUFF_PIN = 5;
+int LONG_SIP_PIN = 5;
+int LONG_PUFF_PIN = 5;
+
+//MOTORS
 /*int PWMDEFAULT = 255;
 int TURN_DUR = 30;*/
 int MARGIN = 5;
@@ -26,7 +45,14 @@ void setup() {
   Serial.begin(9600);
   pinMode(DIR_PIN, OUTPUT);  
   pinMode(SPD_PIN, OUTPUT);
- /* pinMode(PWM_PIN, OUTPUT);    
+  
+  pinMode(DISP_PIN, INPUT);
+  pinMode(SIP_PIN, INPUT);
+  pinMode(PUFF_PIN, INPUT);
+  pinMode(LONG_SIP_PIN, INPUT);
+  pinMode(LONG_PUFF_PIN, INPUT);
+
+  /* pinMode(PWM_PIN, OUTPUT);    
   pinMode(LED_PIN, OUTPUT);  */
   spdServo.attach(SPD_PIN);
   delay(40000);
@@ -36,7 +62,6 @@ void loop() {
 
 //SPEED
   unsigned int spSpd = analogRead(SP_Y_PIN);  
-  // Serial.println(spSpd, DEC);
   // spSpd * MAX_SPD / MAX_SP
   unsigned int spd = spSpd*25/256 + 45;
   
@@ -47,8 +72,20 @@ void loop() {
     spd = STOP;
   }
   spdServo.write(spd);
-  //Serial.println(spd, DEC);
     
+//DISPLAY SPD
+  unsigned char spdDisp = SPD_BIT | controlDisplay();
+  
+  if (spd < STOP) {
+    spdDisp |= NEG_BIT;
+  }
+  if (spd > STOP) {
+    
+  }
+  
+  Serial.write(spdDisp);
+  
+  delay(100);
 
 //DIRECTION
   unsigned int spDir = analogRead(SP_X_PIN);
@@ -74,10 +111,10 @@ void loop() {
   
   signed int error = curDir - sensorTarget;
 
-  Serial.println();
+ /* Serial.println();
   Serial.println(curDir, DEC);  
   Serial.println(sensorTarget, DEC);  
-  Serial.println(error, DEC);  
+  Serial.println(error, DEC);  */
 
   // if our error is big enough, turn the motor
   if( abs(error) > SENSOR_MARGIN ) {
@@ -108,8 +145,37 @@ void loop() {
       delay(TURN_DUR);  
       curDir = analogRead(SENSOR_PIN);
   }  */   
+
+//DISPLAY DIR
+  unsigned char dir = controlDisplay();
+  
+  dir |= (abs(660-currDir)/70) << VAL_SHIFT;
+  
+  if (error < 0) {
+    dir |= NEG_BIT;
+  } 
+  Serial.write(dir);
   
   delay(100);
 }
 
+
+unsigned char controlDisplay() {
+  unsigned char disp = 0;
+  
+  if (digitalRead(LONG_SIP_PIN)) {
+    disp |= CMD_BIT | LONG_SIP;
+  }  
+  else if (digitalRead(LONG_PUFF_PIN)) {
+    disp |= CMD_BIT | LONG_PUFF;
+  }
+  else if (digitalRead(SIP_PIN)) {
+    disp |= CMD_BIT | SIP;
+  }  
+  else if (digitalRead(PUFF_PIN)) {
+    disp |= CMD_BIT | PUFF;
+  } 
+  
+  return disp;
+}
 
