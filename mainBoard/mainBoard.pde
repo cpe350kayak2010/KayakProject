@@ -1,16 +1,5 @@
 #include <Servo.h>
-//DISPLAY
-int SPD_BIT = 0x80;
-int NEG_BIT = 0x40;
-int VAL_SHIFT = 3;
 
-int CMD_BIT = 0x04;
-int SIP = 0;
-int PUFF = 1;
-int LONG_SIP = 2;
-int LONG_PUFF = 3;
-
-int DIR_INCR = 70;
 
 //PINS
 int SENSOR_PIN = A5;    // select the input pin for the potentiometer
@@ -27,33 +16,45 @@ int LONG_SIP_PIN = 5;
 int LONG_PUFF_PIN = 5;
 
 //MOTORS
-/*int PWMDEFAULT = 255;
-int TURN_DUR = 30;*/
+/*int TURN_DUR = 30;*/
 int MARGIN = 5;
 int SENSOR_MARGIN = 10;
-/*
+
 int MAX_SPD = 90;
 int MAX_SP = 1023;
-int MAX_SENSOR = 1023;*/
+int MAX_SENSOR = 1023;
 int MAX_FWD = 145;
 int MAX_REV = 45;
 int STOP = 91;
 
 Servo spdServo;
 
+//DISPLAY
+int SPD_BIT = 0x80;
+int NEG_BIT = 0x40;
+int VAL_SHIFT = 3;
+
+int CMD_BIT = 0x04;
+int SIP = 0;
+int PUFF = 1;
+int LONG_SIP = 2;
+int LONG_PUFF = 3;
+
+int DIR_INCR = 70;
+int SPD_INCR = (MAX_SPD-STOP)/4;
+
 void setup() {
   Serial.begin(9600);
   pinMode(DIR_PIN, OUTPUT);  
   pinMode(SPD_PIN, OUTPUT);
-  
+  pinMode(PWM_PIN, OUTPUT);  
+   
   pinMode(DISP_PIN, INPUT);
   pinMode(SIP_PIN, INPUT);
   pinMode(PUFF_PIN, INPUT);
   pinMode(LONG_SIP_PIN, INPUT);
   pinMode(LONG_PUFF_PIN, INPUT);
-
-  /* pinMode(PWM_PIN, OUTPUT);    
-  pinMode(LED_PIN, OUTPUT);  */
+  
   spdServo.attach(SPD_PIN);
   delay(40000);
 }
@@ -80,7 +81,7 @@ void loop() {
     spdDisp |= NEG_BIT;
   }
   if (spd > STOP) {
-    
+    spdDisp |= (spd-STOP/SPD_INCR) << VAL_SHIFT;
   }
   
   Serial.write(spdDisp);
@@ -90,7 +91,6 @@ void loop() {
 //DIRECTION
   unsigned int spDir = analogRead(SP_X_PIN);
   signed int curDir = analogRead(SENSOR_PIN);
-  //Serial.println(spDir, DEC);
 
   /* Direction sensor:
      center is about 660; variations of about +/- 10 are normal
@@ -111,11 +111,6 @@ void loop() {
   
   signed int error = curDir - sensorTarget;
 
- /* Serial.println();
-  Serial.println(curDir, DEC);  
-  Serial.println(sensorTarget, DEC);  
-  Serial.println(error, DEC);  */
-
   // if our error is big enough, turn the motor
   if( abs(error) > SENSOR_MARGIN ) {
     if( error > 0 ) {
@@ -133,28 +128,15 @@ void loop() {
     analogWrite(PWM_PIN, 0);
   }
 
-/*if(curDir > spDir-MARGIN) {
-    digitalWrite(DIR_PIN, LOW);
-  }
-  else if (spDir > curDir-MARGIN){
-    digitalWrite(DIR_PIN, HIGH);
-  }
-  
-  while (abs(spDir-curDir)-MARGIN > 0) {
-      analogWrite(PWM_PIN, PWMDEFAULT); 
-      delay(TURN_DUR);  
-      curDir = analogRead(SENSOR_PIN);
-  }  */   
-
 //DISPLAY DIR
-  unsigned char dir = controlDisplay();
+  unsigned char dirDisp = controlDisplay();
   
-  dir |= (abs(660-currDir)/70) << VAL_SHIFT;
+  dirDisp |= (abs(660-currDir)/DIR_INCR) << VAL_SHIFT;
   
   if (error < 0) {
-    dir |= NEG_BIT;
+    dirDisp |= NEG_BIT;
   } 
-  Serial.write(dir);
+  Serial.write(dirDisp);
   
   delay(100);
 }
