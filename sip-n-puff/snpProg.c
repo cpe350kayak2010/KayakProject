@@ -19,8 +19,8 @@ unsigned int iPrevSip,iPrevPuff,iTurn,iSpd,iOutTurn,iOutSpeed,iIdle;
 void setOutData()
 {
    // TODO: rewrite this for a single backward speed
-	iOutSpeed=(iSpd*496)+64;
-	iOutTurn=(iTurn*1984)+64;
+	iOutSpeed=(0x7<<12) | ((iSpd*496)+64);
+	iOutTurn=(0xF<<12) | ((iTurn*1984)+64);
 }
 
 /* interpret data from the sip sensor. returns 0 if no chamges were made,
@@ -98,7 +98,8 @@ int checkPuff()
 		}
 		if(iSpd!=FWD100 && iPrevPuff!=0)
 		{
-			iSpd++;			// Speed up if we have been puffing for a while and stop
+         if(iSpd == REV100) iSpd = ZERO;
+         else iSpd++;  // Speed up if we have been puffing for a while and stop
 			iPrevPuff=0;
 			return 1;		// update speed
 		}
@@ -164,7 +165,8 @@ void spiWrite(unsigned int out)
 	USICR=0x11;
 	_delay_loop_1(10);
    /* set up our first output byte. -AJH */
-	USIDR=(0x7<<4)+(out>>8);
+	//USIDR=(0x7<<4)+(out>>8);
+	USIDR=(out>>8);
    /* Transmit our first byte! -AJH */
 	for(i=0;i<8;i++)
 	{
