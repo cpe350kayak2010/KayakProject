@@ -13,11 +13,10 @@ int SP_Y_PIN = A0;
 int JS_X_PIN = A2;
 int JS_Y_PIN = A3;
 
-int DISP_PIN = 5;
-int SIP_PIN = 5;
-int PUFF_PIN = 5;
-int LONG_SIP_PIN = 5;
-int LONG_PUFF_PIN = 5;
+int SIP_PIN = 10;
+int PUFF_PIN = 11;
+int LONG_SIP_PIN = 12;
+int LONG_PUFF_PIN = 13;
 
 //SENSORS
 int MARGIN = 5;
@@ -30,25 +29,25 @@ int SENSOR_RIGHT = 930;
 
 //SIP-N-PUFF
 int MAX_SP = 1023;
+int MIN_SP = 0;
 int SP_LEFT = 256;
 int SP_RIGHT = 768;
+int SP_RANGE = 1024/4;
 
 //JOYSTICK
-int MAX_JS = 1023;
-int JS_LEFT = 256;
-int JS_RIGHT = 768;
-
-//INPUT DEVICE
-int InputXPin = SP_X_PIN;
-int InputYPin = SP_Y_PIN;
-int MaxInput = MAX_SP;
-int QMaxInput = MAX_SP/4;
-int InputLeft = SP_LEFT;
-int InputRight = SP_RIGHT;
+int MAX_JS = 512+100;
+int MIN_JS = 512-100;
+int JS_LEFT = 512-100;
+int JS_RIGHT = 512+100;
+int JS_RANGE = 200/4;
 
 //MOTORS
 int MIN_PWM = 32;
 int MAX_PWM = 250;
+
+int MAX_DIR = 560;
+int Q_MAX_DIR = MAX_DIR/4;
+
 int MAX_SPD = 90;
 int Q_MAX_SPD = 25;
 
@@ -80,60 +79,65 @@ void setup() {
   pinMode(SPD_PIN, OUTPUT);
   pinMode(PWM_PIN, OUTPUT);  
    
-  pinMode(DISP_PIN, INPUT);
   pinMode(SIP_PIN, INPUT);
   pinMode(PUFF_PIN, INPUT);
   pinMode(LONG_SIP_PIN, INPUT);
   pinMode(LONG_PUFF_PIN, INPUT);
   
+  pinMode(EN_JS_PIN, INPUT);
+  pinMode(EN_SP_PIN, INPUT);
+  
   spdServo.attach(SPD_PIN);
 }
 
+  
+/* Direction sensor:
+   center is about 660; variations of about +/- 10 are normal
+   full left is about 380
+   full right is about 930
+ */
+ 
+ 
 void loop() {  
-
-//INPUT DEVICE
-  if(!inputDevice()) {
-    spdServo.write(STOP);
-  }
+  signed int sensorTarget = SENSOR_CENTER;
+  unsigned int spd = STOP;
   
-//SPEED
-  unsigned int spd = Speed();
-  displaySpd(spd); 
-  //delay(100);
+  if (digitalRead(EN_SP_PIN)) {
+    // read sip-n-puff steering and set sensor target
+     /* X input:
+        center at 512, +/- 2
+        long sip (left?) 14 +/- 2
+        long puff (right?) 1006 +/- 2
+      */
+    signed int inDir = analogRead(SP_X_PIN);
+    if(inDir < SP_LEFT) sensorTarget = SENSOR_LEFT;
+    if(inDir > SP_RIGHT) sensorTarget = SENSOR_RIGHT;
+    
+    // read sip-n-puff speed input and generate speed
+    unsigned int inSpd = analogRead(SP_Y_PIN);
+    spd = (inSpd-MIN_SP)*Q_MAX_SPD/SP_RANGE + SPD_OFFSET;
+    
+    
+  } else if (digitalRead(EN_JS_PIN)) {
+    // read joystick steering and set sensor target
+    signed int inDir = analogRead(JS_X_PIN);
+    if(inDir < JS_LEFT ) inDir = JS_LEFT;
+    if(inDir > JS_RIGHT ) inDir = JS_RIGHT;
+    signed int dir = (inDir-MIN_JS)*Q_MAX_DIR/JS_RANGE;
+    
+    sensorTarget = dir + SENSOR_LEFT; 
 
-//DIRECTION
-  signed int dir = Direction();
-  displayDir(dir);
-  //delay(100);
-}
+    // read joystick speed and set sensor target
+    unsigned int inSpd = analogRead(JS_Y_PIN);
+    inSpd = MAX_SENSOR - inSpd;  
+    spd = (inSpd-MIN_JS)*Q_MAX_SPD/JS_RANGE + SPD_OFFSET;
 
-unsigned int inputDevice() {
-  if (digitalRead(EN_SP)) {
-    InputXPin = SP_X_PIN;
-    InputYPin = SP_Y_PIN;
-    MaxInput = MAX_SP;
-    InputLeft = SP_LEFT;
-    InputRight - SP_RIGHT;
+  } else {
+    sensorTarget = SENSOR_CENTER;
+    spd = STOP;
   }
-  else if (digitalRead(EN_JS) {
-    InputXPin = JS_X_PIN;
-    InputYPin = JS_Y_PIN;
-    MaxInput = MAX_JS;
-    InputLeft = JS_LEFT;
-    InputRight - JS_RIGHT;
-  }
-  else {
-    return 0;
-  }
-  return 1;
-}
 
-unsigned int Speed() {
-  unsigned int inSpd = analogRead(InputYPin);  
-  // spSpd * MAX_SPD / MAX_SP + SPD_OFFSET
-  //unsigned int spd = spSpd*25/256 + 45;
-  unsigned int spd = inSpd*Q_MAX_SPD/QMaxInput + SPD_OFFSET;
-  
+  // speed control and limiting
   spd = spd < MAX_REV ? MAX_REV: spd;
   spd = spd > MAX_FWD ? MAX_FWD : spd;
 
@@ -141,44 +145,10 @@ unsigned int Speed() {
     spd = STOP;
   }
   spdServo.write(spd);
+  // done with speed control
   
-  return spd;
-}
-
-void displaySpd(unsigned int spd) {
-  unsigned char spdDisp = SPD_BIT | controlDisplay();
-  
-  if (spd < STOP) {
-    spdDisp |= NEG_BIT;
-  }
-  if (spd > STOP) {
-    spdDisp |= (spd-STOP/SPD_INCR) << VAL_SHIFT;
-  }
-  
-  Serial.write(spdDisp);
-}
-
-signed int Direction() {
-  unsigned int spDir = analogRead(InputXPin);
-  signed int curDir = analogRead(SENSOR_PIN);
-  
-  /* Direction sensor:
-     center is about 660; variations of about +/- 10 are normal
-     full left is about 380
-     full right is about 930
-   */
-   
-   /* X input:
-      center at 512, +/- 2
-      long sip (left?) 14 +/- 2
-      long puff (right?) 1006 +/- 2
-    */
-    
-  signed int sensorTarget = SENSOR_CENTER;
-  
-  if(spDir < InputLeft) sensorTarget = SENSOR_LEFT;
-  if(spDir > InputRight) sensorTarget = SENSOR_RIGHT;
-  
+  // direction control and limiting
+  signed int curDir = analogRead(SENSOR_PIN); // read direction sensor
   signed int error = curDir - sensorTarget;
   
   // if our error is big enough, turn the motor
@@ -197,16 +167,33 @@ signed int Direction() {
   else {
     analogWrite(PWM_PIN, 0);
   }
+  // done with direction control
   
-  return curDir;
+  // write control data to display
+  displaySpd(spd);
+  displayDir(curDir);
+}
+
+
+void displaySpd(unsigned int spd) {
+  unsigned char spdDisp = SPD_BIT | controlDisplay();
+  
+  if (spd < STOP) {
+    spdDisp |= NEG_BIT;
+  }
+  if (spd > STOP) {
+    spdDisp |= (spd-STOP/SPD_INCR) << VAL_SHIFT;
+  }
+  
+  Serial.write(spdDisp);
 }
 
 void displayDir(signed int curDir) {
   unsigned char dirDisp = controlDisplay();
   
-  dirDisp |= (abs(CENTER-curDir)/DIR_INCR) << VAL_SHIFT;
+  dirDisp |= (abs(SENSOR_CENTER-curDir)/DIR_INCR) << VAL_SHIFT;
   
-  if (curDir < CENTER) {
+  if (curDir < SENSOR_CENTER) {
     dirDisp |= NEG_BIT;
   } 
   
