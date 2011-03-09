@@ -10,6 +10,12 @@
    short puff: increase speed (less reverse/more forward)
    long/continuous puff: turn left. stops turning when sip stops
    */
+
+/* 
+   Outputs
+   Long sip: PB0
+   Long puff: PB1
+   */
 #include "snpProg.h"
 
 unsigned int iPrevSip,iPrevPuff,iTurn,iSpd,iOutTurn,iOutSpeed,iIdle;
@@ -29,6 +35,7 @@ int checkSip()
 {
 	if((PINA&0x1)==0)		// Check to see if pin is logic high
 	{
+      PORTB &= ~(1 << PB0); // disable long sip output
 		if(iTurn==RIGHT)
 		{
 			iIdle++; /* if the user has stopped sipping, cancel the turn. -AJH */
@@ -66,6 +73,7 @@ int checkSip()
 		iPrevSip++;			// Update Counter
 		if(iPrevSip==10)	// Becomes a long Sip
 		{
+         PORTB |= (1 << PB0); // enable long sip output
 			iTurn=RIGHT;	// Update Direction
 			iPrevSip=0;		// Reset counter 
 			return 2;		// Update Turn
@@ -80,6 +88,7 @@ int checkPuff()
 {
 	if((PINA&0x2)==0) 		// check Puff Pin
 	{
+      PORTB &= ~(1 << PB1); // disable long puff output
 		if(iTurn==LEFT)
 		{
 			iIdle++; /* if the user has stopped puffing, cancel the turn. -AJH */
@@ -108,6 +117,7 @@ int checkPuff()
 		iPrevPuff++;		//Iterate iPrevPuff
 		if(iPrevPuff==10)	//Becomes a long Puff
 		{
+         PORTB |= (1 << PB1); // enable long puff output
 			iTurn=LEFT;		// update Turn status
 			iPrevPuff=0;	// reset Puff Counter
 			return 2;		// update Turn
