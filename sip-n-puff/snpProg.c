@@ -213,6 +213,8 @@ void spiWrite(unsigned int out)
    routine polls the input at regular intervals and produces output. -AJH */
 int main()
 {//l,f,ri,re
+   // set long sip and long puff pins as outputs
+   DDRB |= (1 << PB0) | (1 << PB1);
 	// Initialize Timer
 	TCCR0A=0x0;
 	TCCR0B=0x4;

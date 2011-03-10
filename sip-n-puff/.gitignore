@@ -1,0 +1,9 @@
+snpProg.eep
+snpProg.elf
+snpProg.hex
+snpProg.lss
+snpProg.lst
+snpProg.map
+snpProg.o
+snpProg.sym
+.dep
