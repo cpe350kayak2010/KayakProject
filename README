@@ -1,7 +1,7 @@
-This is the code for both of the processors on the CPE 350 Kayak, Fall 2010
+This is the code for the processors on the CPE 350/450 Kayak, Fall 2010 and Winter 2011
 
-The code for the main board is located in main/Project_Kayak.c
+The code for the main board (Arduino Uno) is mainBoard/mainBoard.pde
+To compile and load the main board code, you will need the Arduino development environment.
 
-The code for the sip-n-puff controller board is located in sip-n-puff/snpProg.c
-
-To compile and load this code onto the board, you will need to install an avr-gcc based AVR development environment, either avr-gcc on Mac/Linux, or WinAVR on Windows.
+The code for the sip-n-puff controller board is located in sip-n-puff/snpProg.c, and the code for the diplay board is in display/Display.c
+To compile and load sip-n-puff and display code, you will need to install an avr-gcc based AVR development environment, either avr-gcc on Mac/Linux, or WinAVR on Windows.
