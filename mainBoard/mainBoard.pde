@@ -23,7 +23,7 @@ int MARGIN = 5;
 int SENSOR_MARGIN = 10;
 
 int MAX_SENSOR = 1023;
-int SENSOR_CENTER = 660;
+int SENSOR_CENTER = 655;
 int SENSOR_LEFT = 380;
 int SENSOR_RIGHT = 930;
 
@@ -35,11 +35,11 @@ int SP_RIGHT = 768;
 int SP_RANGE = 1024/4;
 
 //JOYSTICK
-int MAX_JS = 512+100;
-int MIN_JS = 512-100;
-int JS_LEFT = 512-100;
-int JS_RIGHT = 512+100;
-int JS_RANGE = 200/4;
+int MAX_JS = 512+80;
+int MIN_JS = 512-80;
+int JS_LEFT = 512-80;
+int JS_RIGHT = 512+80;
+int JS_RANGE = 160/4;
 
 //MOTORS
 int MIN_PWM = 32;
@@ -48,7 +48,6 @@ int MAX_PWM = 250;
 int MAX_DIR = 560;
 int Q_MAX_DIR = MAX_DIR/4;
 
-int MAX_SPD = 90;
 int Q_MAX_SPD = 25;
 
 int MAX_FWD = 145;
@@ -60,21 +59,21 @@ int SPD_OFFSET = 45;
 Servo spdServo;
 
 //DISPLAY
-int SPD_BIT = 0x80;
-int NEG_BIT = 0x40;
-int VAL_SHIFT = 3;
+unsigned char SPD_BIT = 0x80;
+unsigned char NEG_BIT = 0x40;
+unsigned char VAL_SHIFT = 3;
 
-int CMD_BIT = 0x04;
-int SIP = 0;
-int PUFF = 1;
-int LONG_SIP = 2;
-int LONG_PUFF = 3;
+unsigned char CMD_BIT = 0x04;
+unsigned char SIP = 0;
+unsigned char PUFF = 1;
+unsigned char LONG_SIP = 2;
+unsigned char LONG_PUFF = 3;
 
-int DIR_INCR = (SENSOR_CENTER-SENSOR_LEFT)/4;
-int SPD_INCR = (MAX_SPD-STOP)/4;
+int DIR_INCR = (SENSOR_CENTER-SENSOR_LEFT-SENSOR_MARGIN)/4;
+int SPD_INCR = (MAX_FWD-STOP)/4;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(2400);
   pinMode(DIR_PIN, OUTPUT);  
   pinMode(SPD_PIN, OUTPUT);
   pinMode(PWM_PIN, OUTPUT);  
@@ -121,6 +120,7 @@ void loop() {
   } else if (digitalRead(EN_JS_PIN)) {
     // read joystick steering and set sensor target
     signed int inDir = analogRead(JS_X_PIN);
+    
     if(inDir < JS_LEFT ) inDir = JS_LEFT;
     if(inDir > JS_RIGHT ) inDir = JS_RIGHT;
     signed int dir = (inDir-MIN_JS)*Q_MAX_DIR/JS_RANGE;
@@ -129,7 +129,10 @@ void loop() {
 
     // read joystick speed and set sensor target
     unsigned int inSpd = analogRead(JS_Y_PIN);
-    inSpd = MAX_SENSOR - inSpd;  
+    inSpd = MAX_SENSOR - inSpd; 
+    if( inSpd < MIN_JS ) inSpd = MIN_JS;
+    if( inSpd > MAX_JS ) inSpd = MAX_JS;
+    
     spd = (inSpd-MIN_JS)*Q_MAX_SPD/JS_RANGE + SPD_OFFSET;
 
   } else {
@@ -169,6 +172,7 @@ void loop() {
   }
   // done with direction control
   
+  //Serial.println(curDir, DEC);
   // write control data to display
   displaySpd(spd);
   displayDir(curDir);
@@ -182,10 +186,12 @@ void displaySpd(unsigned int spd) {
     spdDisp |= NEG_BIT;
   }
   if (spd > STOP) {
-    spdDisp |= (spd-STOP/SPD_INCR) << VAL_SHIFT;
+    spdDisp |= ((spd-STOP)/SPD_INCR) << VAL_SHIFT;
   }
   
   Serial.write(spdDisp);
+  //Serial.println(spdDisp, HEX);
+  delay(10);
 }
 
 void displayDir(signed int curDir) {
@@ -193,11 +199,14 @@ void displayDir(signed int curDir) {
   
   dirDisp |= (abs(SENSOR_CENTER-curDir)/DIR_INCR) << VAL_SHIFT;
   
-  if (curDir < SENSOR_CENTER) {
+  if (curDir < SENSOR_CENTER - SENSOR_MARGIN) {
     dirDisp |= NEG_BIT;
   } 
   
   Serial.write(dirDisp);
+  //Serial.println(dirDisp, HEX);
+  //delay(100);
+  delay(10);
 }
 
 unsigned char controlDisplay() {
